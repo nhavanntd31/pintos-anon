@@ -5,24 +5,31 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "threads/synch.h"
+#include "filesys/directory.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
-  {
-    THREAD_RUNNING,     /* Running thread. */
-    THREAD_READY,       /* Not running but ready to run. */
-    THREAD_BLOCKED,     /* Waiting for an event to trigger. */
-    THREAD_DYING        /* About to be destroyed. */
-  };
+{
+  THREAD_RUNNING, /* Running thread. */
+  THREAD_READY,   /* Not running but ready to run. */
+  THREAD_BLOCKED, /* Waiting for an event to trigger. */
+  THREAD_DYING    /* About to be destroyed. */
+};
 
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
-#define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
+#define TID_ERROR ((tid_t) -1) /* Error value for tid_t. */
 
 /* Thread priorities. */
-#define PRI_MIN 0                       /* Lowest priority. */
-#define PRI_DEFAULT 31                  /* Default priority. */
-#define PRI_MAX 63                      /* Highest priority. */
+#define PRI_MIN 0      /* Lowest priority. */
+#define PRI_DEFAULT 31 /* Default priority. */
+#define PRI_MAX 63     /* Highest priority. */
+
+// TODO REMOVE LATER
+// Temporary Variable for VS Code Errors
+#define USERPROG 1
 
 /* A kernel thread or user process.
 
@@ -73,7 +80,9 @@ typedef int tid_t;
    an assertion failure in thread_current(), which checks that
    the `magic' member of the running thread's `struct thread' is
    set to THREAD_MAGIC.  Stack overflow will normally change this
-   value, triggering the assertion. */
+   value, triggering the assertion.  (So don't add elements below
+   THREAD_MAGIC.)
+*/
 /* The `elem' member has a dual purpose.  It can be an element in
    the run queue (thread.c), or it can be an element in a
    semaphore wait list (synch.c).  It can be used these two ways
@@ -81,26 +90,51 @@ typedef int tid_t;
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
 struct thread
-  {
-    /* Owned by thread.c. */
-    tid_t tid;                          /* Thread identifier. */
-    enum thread_status status;          /* Thread state. */
-    char name[16];                      /* Name (for debugging purposes). */
-    uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
+{
+  /* Owned by thread.c. */
+  tid_t tid;                 /* Thread identifier. */
+  enum thread_status status; /* Thread state. */
+  char name[16];             /* Name (for debugging purposes). */
+  uint8_t *stack;            /* Saved stack pointer. */
+  int priority;              /* Priority. */
+  struct list_elem allelem;  /* List element for all threads list. */
+  struct thread *parent;     /* parent thread for waiting */
 
-    /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
+  /* Shared between thread.c and synch.c. */
+  struct list_elem elem; /* List element. */
+
+  // Driver: Joel
+  // Filesys modification
+  /* Current process directory */
+  struct dir* curr_dir; 
 
 #ifdef USERPROG
-    /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
+   /* Owned by userprog/process.c. */
+   uint32_t *pagedir; /* Page directory. */
+   /* Driver: All of Us */
+   struct file* fd_list[128]; /* Unique Thread file list. */
+   struct file* curr_file; /* Current file that is deny_write */
+   int fd_val; /* file descriptor value for indexing into fd_list */
+   struct list_elem child_elem; /* Gain access to list.c functionality */ 
+   struct list list_of_childs; /* List of parent's children */
+   /* Semaphore that synchronizes load for wait and exec */
+   struct semaphore load_val; 
+   /* Semaphore synchronizing parent waiting on child. */
+   struct semaphore wait_sema;
+   /* Semaphore synchronizing before terminating child. */
+   struct semaphore killed_sema;
+   /* Checks for loading error, if error then kill process. */
+   bool load_error;
+   bool waited; /* If true, tells us wait() has been called. */
+   bool child_exited; /* Exit will set this on the thread's parent */
+   int child_status; /* Wait will look at this value; */
+   int e_status; /* Exit status of child. */
+   
 #endif
 
-    /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
-  };
+  /* Owned by thread.c. */
+  unsigned magic; /* Detects stack overflow. */
+};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

@@ -13,18 +13,17 @@ static thread_func alarm_priority_thread;
 static int64_t wake_time;
 static struct semaphore wait_sema;
 
-void
-test_alarm_priority (void) 
+void test_alarm_priority (void)
 {
   int i;
-  
+
   /* This test does not work with the MLFQS. */
   ASSERT (!thread_mlfqs);
 
   wake_time = timer_ticks () + 5 * TIMER_FREQ;
   sema_init (&wait_sema, 0);
-  
-  for (i = 0; i < 10; i++) 
+
+  for (i = 0; i < 10; i++)
     {
       int priority = PRI_DEFAULT - (i + 5) % 10 - 1;
       char name[16];
@@ -38,8 +37,7 @@ test_alarm_priority (void)
     sema_down (&wait_sema);
 }
 
-static void
-alarm_priority_thread (void *aux UNUSED) 
+static void alarm_priority_thread (void *aux UNUSED)
 {
   /* Busy-wait until the current time changes. */
   int64_t start_time = timer_ticks ();
